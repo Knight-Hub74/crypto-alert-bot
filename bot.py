@@ -16,11 +16,20 @@ LIMIT = 500  # Nombre de bougies à récupérer
 def fetch_binance_ohlcv(symbol, interval, limit=500):
     url = f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval={interval}&limit={limit}"
     response = requests.get(url)
-    data = response.json()
-    if not data:  # Vérifie si les données sont vides
-        print("Aucune donnée reçue.")
-        return pd.DataFrame()  # Retourne un DataFrame vide si aucune donnée n'est reçue.
     
+    # Afficher le statut de la réponse de l'API
+    print(f"Statut de la réponse de l'API : {response.status_code}")
+    
+    data = response.json()
+    
+    # Si les données sont vides
+    if not data:
+        print("Aucune donnée reçue de l'API.")
+        return pd.DataFrame()
+    
+    # Vérification des données
+    print("Données reçues : ", data[:5])  # Affiche les 5 premières données pour vérifier
+
     df = pd.DataFrame(data, columns=[
         'timestamp', 'open', 'high', 'low', 'close', 'volume',
         'close_time', 'quote_asset_volume', 'number_of_trades',
@@ -29,7 +38,12 @@ def fetch_binance_ohlcv(symbol, interval, limit=500):
     df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
     df.set_index('timestamp', inplace=True)
     df = df[['open', 'high', 'low', 'close', 'volume']].astype(float)
+    
+    # Vérifie le DataFrame créé
+    print("Extrait du DataFrame : ", df.head())  # Affiche les 5 premières lignes du DataFrame
+
     return df
+
 
 def add_indicators(df):
     df["rsi"] = RSIIndicator(df["close"]).rsi()
