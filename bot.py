@@ -104,10 +104,10 @@ if patterns_detected:
     confirmations = confirm_signal(df)
     action = determine_action(confirmations)
     timestamp = df.index[-1].strftime("%Y-%m-%d %H:%M")
-    alert_msg = f"ALERTE BTCUSD - {timestamp}
-"                 f"Patterns détectés : {', '.join(patterns_detected)}
-"                 f"Confirmations : {', '.join(confirmations) if confirmations else 'Aucune'}
-"                 f"Recommandation : {action}"
+    alert_msg = f"ALERTE BTCUSD - {timestamp}\n" \
+            f"Patterns détectés : {', '.join(patterns_detected)}\n" \
+            f"Confirmations : {', '.join(confirmations) if confirmations else 'Aucune'}\n" \
+            f"Recommandation : {action}"
     send_telegram_alert(alert_msg)
 
 alert_msg if patterns_detected else "Aucune alerte détectée pour le moment."
