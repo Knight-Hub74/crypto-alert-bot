@@ -1,4 +1,3 @@
-
 import requests
 import pandas as pd
 from datetime import datetime
@@ -18,6 +17,10 @@ def fetch_binance_ohlcv(symbol, interval, limit=500):
     url = f"https://api.binance.com/api/v3/klines?symbol={symbol}&interval={interval}&limit={limit}"
     response = requests.get(url)
     data = response.json()
+    if not data:  # Vérifie si les données sont vides
+        print("Aucune donnée reçue.")
+        return pd.DataFrame()  # Retourne un DataFrame vide si aucune donnée n'est reçue.
+    
     df = pd.DataFrame(data, columns=[
         'timestamp', 'open', 'high', 'low', 'close', 'volume',
         'close_time', 'quote_asset_volume', 'number_of_trades',
@@ -45,6 +48,8 @@ def detect_double_bottom(df):
     return None
 
 def detect_breakout(df):
+    if len(df) < 20:  # Assure-toi qu'il y a suffisamment de données pour analyser
+        return None
     last_close = df['close'].iloc[-1]
     recent_high = df['high'].rolling(20).max().iloc[-2]
     recent_low = df['low'].rolling(20).min().iloc[-2]
@@ -66,6 +71,9 @@ def detect_head_and_shoulders(df):
     return None
 
 def confirm_signal(df):
+    if df.empty:
+        return []  # Retourne une liste vide si le DataFrame est vide.
+    
     latest = df.iloc[-1]
     confirmation = []
     if latest["rsi"] < 30:
@@ -91,23 +99,29 @@ def send_telegram_alert(message):
 
 # === LOGIQUE PRINCIPALE ===
 df = fetch_binance_ohlcv(SYMBOL, INTERVAL, LIMIT)
-df = add_indicators(df)
 
-patterns_detected = []
+# Vérifie si le DataFrame est vide avant d'ajouter les indicateurs
+if df.empty:
+    print("Pas de données disponibles. Arrêt du programme.")
+else:
+    df = add_indicators(df)
 
-for detector in [detect_double_bottom, detect_breakout, detect_head_and_shoulders]:
-    result = detector(df)
-    if result:
-        patterns_detected.append(result)
+    patterns_detected = []
 
-if patterns_detected:
-    confirmations = confirm_signal(df)
-    action = determine_action(confirmations)
-    timestamp = df.index[-1].strftime("%Y-%m-%d %H:%M")
-    alert_msg = f"ALERTE BTCUSD - {timestamp}\n" \
-            f"Patterns détectés : {', '.join(patterns_detected)}\n" \
-            f"Confirmations : {', '.join(confirmations) if confirmations else 'Aucune'}\n" \
-            f"Recommandation : {action}"
-    send_telegram_alert(alert_msg)
+    for detector in [detect_double_bottom, detect_breakout, detect_head_and_shoulders]:
+        result = detector(df)
+        if result:
+            patterns_detected.append(result)
 
-alert_msg if patterns_detected else "Aucune alerte détectée pour le moment."
+    if patterns_detected:
+        confirmations = confirm_signal(df)
+        action = determine_action(confirmations)
+        timestamp = df.index[-1].strftime("%Y-%m-%d %H:%M")
+        alert_msg = f"ALERTE BTCUSD - {timestamp}\n" \
+                    f"Patterns détectés : {', '.join(patterns_detected)}\n" \
+                    f"Confirmations : {', '.join(confirmations) if confirmations else 'Aucune'}\n" \
+                    f"Recommandation : {action}"
+        send_telegram_alert(alert_msg)
+
+    else:
+        print("Aucune alerte détectée pour le moment.")
