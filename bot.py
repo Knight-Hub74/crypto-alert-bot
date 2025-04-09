@@ -5,6 +5,7 @@ from ta.trend import MACD, EMAIndicator
 from ta.momentum import RSIIndicator
 
 # === CONFIGURATION ===
+logging.basicConfig(level=logging.DEBUG)
 TELEGRAM_BOT_TOKEN = "8168191121:AAEYiwekg24YCq8izhlXQ6bXh pVjL-TJ7HK"  # Remplace avec ton token de bot Telegram
 TELEGRAM_CHAT_ID = "525275970"      # Remplace avec ton ID de chat Telegram
 SYMBOL = "BTCUSDT"
