@@ -1,4 +1,5 @@
 import requests
+import logging
 import pandas as pd
 from datetime import datetime
 from ta.trend import MACD, EMAIndicator
