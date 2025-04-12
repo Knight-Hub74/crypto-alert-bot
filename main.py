@@ -17,13 +17,16 @@ LIMIT = 500                              # Nombre de bougies à récupérer
 # === FONCTIONS ===
 
 # Fonction pour récupérer les données OHLCV depuis Binance
-def fetch_binance_ohlcv(symbol, timeframe=TIMEFRAME, limit=LIMIT):
-    exchange = ccxt.binance()
-    ohlcv = exchange.fetch_ohlcv(symbol, timeframe=timeframe, limit=limit)
-    df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
+def fetch_coingecko_data(symbol, currency="usd"):
+    url = f'https://api.coingecko.com/api/v3/coins/{symbol}/market_chart'
+    params = {'vs_currency': currency, 'days': '1', 'interval': 'hourly'}
+    response = requests.get(url, params=params)
+    data = response.json()
+    
+    prices = data['prices']
+    df = pd.DataFrame(prices, columns=['timestamp', 'close'])
     df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
     df.set_index('timestamp', inplace=True)
-    df = df[['open', 'high', 'low', 'close', 'volume']].astype(float)
     return df
 
 # Ajouter des indicateurs techniques (RSI, MACD, EMA)
