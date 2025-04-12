@@ -1,22 +1,20 @@
 import requests
 import pandas as pd
+from datetime import datetime
 from ta.trend import MACD, EMAIndicator
 from ta.momentum import RSIIndicator
-from datetime import datetime
-import numpy as np
-import ccxt
 import time
 
 # === CONFIGURATION ===
-TELEGRAM_BOT_TOKEN = "7695512134:AAHOwinoUzeqUFREW7GnClkmf20Hod3_TYs"  # Remplacez par votre token de bot Telegram
-TELEGRAM_CHAT_ID = "5252757970"      # Remplacez par votre ID de chat Telegram
-SYMBOLS = ["BTC/USDT", "EUR/USD"]       # Liste des symboles à surveiller
-TIMEFRAME = '1h'                        # Timeframe à utiliser
-LIMIT = 500                              # Nombre de bougies à récupérer
+TELEGRAM_BOT_TOKEN = "VOTRE_BOT_TOKEN"  # Remplacez par votre token de bot Telegram
+TELEGRAM_CHAT_ID = "VOTRE_CHAT_ID"      # Remplacez par votre ID de chat Telegram
+SYMBOLS = ["bitcoin", "ethereum"]  # Liste des symboles à surveiller (ici BTC et ETH en format CoinGecko)
+TIMEFRAME = '1h'                     # Timeframe à utiliser
+LIMIT = 500                           # Nombre de bougies à récupérer
 
 # === FONCTIONS ===
 
-# Fonction pour récupérer les données OHLCV depuis Binance
+# Fonction pour récupérer les données de prix depuis CoinGecko
 def fetch_coingecko_data(symbol, currency="usd"):
     url = f'https://api.coingecko.com/api/v3/coins/{symbol}/market_chart'
     params = {'vs_currency': currency, 'days': '1', 'interval': 'hourly'}
@@ -53,7 +51,7 @@ def send_telegram_alert(message):
     except Exception as e:
         print(f"Une erreur s'est produite lors de l'envoi du message : {str(e)}")
 
-# Fonction de détection des patterns chartistes classiques
+# Détecter les patterns (fonction simplifiée)
 def detect_patterns(df):
     patterns = []
 
@@ -62,7 +60,7 @@ def detect_patterns(df):
         candle2 = df.iloc[i - 1]
         candle3 = df.iloc[i]
 
-        # ENGULFING BULLISH
+        # Bullish Engulfing
         if (candle2['close'] < candle2['open']) and \
            (candle3['close'] > candle3['open']) and \
            (candle3['close'] > candle2['open']) and \
@@ -71,15 +69,10 @@ def detect_patterns(df):
                 'pattern': 'Bullish Engulfing',
                 'index': df.index[i],
                 'signal': 'buy',
-                'strength': 'strong',
-                'confirmation': 'RSI + MACD',
-                'entry': candle3['close'],
-                'stop_loss': candle3['low'],
-                'take_profit': candle3['high'] * 1.05,  # Exemple : TP à +5% du high
-                'strategy': 'Confirmer la cassure du précédent plus bas'
+                'strength': 'strong'
             })
 
-        # ENGULFING BEARISH
+        # Bearish Engulfing
         if (candle2['close'] > candle2['open']) and \
            (candle3['close'] < candle3['open']) and \
            (candle3['open'] > candle2['close']) and \
@@ -88,15 +81,17 @@ def detect_patterns(df):
                 'pattern': 'Bearish Engulfing',
                 'index': df.index[i],
                 'signal': 'sell',
-                'strength': 'strong',
-                'confirmation': 'RSI + MACD',
-                'entry': candle3['close'],
-                'stop_loss': candle3['high'],
-                'take_profit': candle3['low'] * 0.95,  # Exemple : TP à -5% du low
-                'strategy': 'Confirmer la cassure du précédent plus haut'
+                'strength': 'strong'
             })
 
-        # ... (autres patterns à ajouter selon le besoin)
+        # Doji (exemple simplifié)
+        if abs(candle3['close'] - candle3['open']) < 0.001 * candle3['close']:
+            patterns.append({
+                'pattern': 'Doji',
+                'index': df.index[i],
+                'signal': 'neutral',
+                'strength': 'weak'
+            })
 
     return patterns
 
@@ -104,29 +99,34 @@ def detect_patterns(df):
 def main():
     for symbol in SYMBOLS:
         print(f"Analyse en cours pour {symbol}...")
-        df = fetch_binance_ohlcv(symbol)
+
+        # Récupérer les données de marché pour chaque actif
+        df = fetch_coingecko_data(symbol)
+
+        # Ajouter les indicateurs techniques
         df = add_indicators(df)
 
         # Détection des patterns
         patterns = detect_patterns(df)
 
+        # Si des patterns sont détectés, envoyer l'alerte Telegram
         if patterns:
             for pattern in patterns:
-                # Formater le message avec les détails
                 message = f"[ALERTE PATTERN 📊]\n"
                 message += f"⏰ {pattern['index']}\n"
-                message += f"📈 Actif : {symbol}\n"
+                message += f"📈 Actif : {symbol.upper()}\n"
                 message += f"📐 Pattern détecté : {pattern['pattern']}\n"
-                message += f"✅ Confirmé par {pattern['confirmation']}\n"
+                message += f"✅ Confirmé par RSI + MACD\n"  # Exemple simple de confirmation
                 message += f"📊 Prise de position :\n"
-                message += f"    ➤ {pattern['signal'].capitalize()} à {pattern['entry']}\n"
-                message += f"    ➤ Stop Loss à {pattern['stop_loss']}\n"
-                message += f"    ➤ Take Profit à {pattern['take_profit']}\n"
-                message += f"💡 Stratégie : {pattern['strategy']}\n"
-                
+                message += f"    ➤ {pattern['signal'].capitalize()} à {df['close'].iloc[-1]}\n"
+                message += f"    ➤ Stop Loss à {df['close'].iloc[-1] * 0.99} (-1%)\n"  # Exemple
+                message += f"    ➤ Take Profit à {df['close'].iloc[-1] * 1.02} (+2%)\n"  # Exemple
+                message += f"💡 Stratégie : Confirmation par RSI et MACD\n"
+
+                # Envoi de l'alerte
                 send_telegram_alert(message)
         else:
-            print(f"Aucun signal de trading détecté pour {symbol}.")
+            print(f"Aucun pattern détecté pour {symbol}.")
         
         # Pause entre les analyses pour éviter trop de requêtes
         time.sleep(60 * 60)  # Pause de 1 heure
